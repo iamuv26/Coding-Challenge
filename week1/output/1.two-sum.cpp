@@ -4,7 +4,6 @@
  * [1] Two Sum
  */
 
-
 // @lc code=start
 class Solution {
 public:
