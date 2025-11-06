@@ -1,5 +1,16 @@
 {
   "dependencies": {
+    "express": "^5.1.0",
     "node": "^25.0.0"
-  }
+  },
+  "name": "my-c-journey",
+  "description": "I began with the basics—variables, loops, and functions—before moving into more advanced areas like classes, inheritance, polymorphism, and templates. Each project I worked on, from simple console applications to data structure implementations, strengthened my problem-solving ability.",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
