@@ -1,4 +1,7 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = "iamuv26@gmail.com"
+
 
 const app = express();
 
@@ -38,8 +41,12 @@ app.post("/signup", function(req,res){
         password: password
     })
 
-    res.json({
-        message: "You are signed in"
+    // generate a JWT for the new user and return it so clients can use it immediately
+  //  const token = jwt.sign({ username: username }, JWT_SECRET);
+
+    res.status(201).json({
+        message: "You are signed in",
+        token: token
     })
 
     console.log(users)
@@ -65,9 +72,13 @@ app.post("/signin", function(req,res){
     }
 
     if(foundUser){
-        const token = generateToken();
-        foundUser.token = token;
+       // const token = generateToken();
+       const token = jwt.sign({
+          username : username
+       },JWT_SECRET)
+       // foundUser.token = token;
         // return token in a `token` field (easier for clients)
+
         res.json({
             token: token
         });
@@ -81,30 +92,31 @@ app.post("/signin", function(req,res){
 })
 
 app.get("/me", (req, res) => {
-    // Support tokens sent as:
-    // - Authorization: Bearer <token>
-    // - Authorization: <token>
-    // - ?token=<token>
-    let authHeader = req.headers.authorization || req.headers.Authorization || "";
-    let token = authHeader;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.slice(7).trim();
-    }
-    if (!token && req.query && req.query.token) {
-        token = req.query.token;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: "Unauthorized - no token provided" });
     }
 
-    const user = users.find(user => user.token === token);
-    if (user) {
-        res.send({
-            username: user.username
-        });
-    } else {
-        res.status(401).send({
-            message: "Unauthorized"
-        });
+    // Support both raw token and "Bearer <token>" formats
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+
+    let userDetails;
+    try {
+        userDetails = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+        return res.status(401).send({ message: "Unauthorized - invalid token" });
     }
-});
+
+    const username = userDetails.username;
+    const user = users.find(user => user.username === username);
+
+    if (user) {
+        res.send({ username: user.username });
+    } else {
+        res.status(401).send({ message: "Unauthorized" });
+    }
+})
+
 app.listen(3001, () => {
     console.log('Authentication server running on http://localhost:3001');
 });
