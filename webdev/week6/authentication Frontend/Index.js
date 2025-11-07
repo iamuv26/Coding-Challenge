@@ -18,8 +18,8 @@ function logger(req,res,next){
 // Signup Route
 app.post("/signup",logger ,(req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password)
-    return res.status(400).json({ message: "username and password required" });
+ // if (!username || !password)
+   // return res.status(400).json({ message: "username and password required" });
 
   users.push({ username, password });
   return res.json({ message: "Signup successful" });

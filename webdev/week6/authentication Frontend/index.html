@@ -58,8 +58,10 @@
     <script>
     async function logout() {
         localStorage.removeItem("token");
-        document.getElementById("information").innerHTML = "";
-        alert("Logged out");
+        document.getElementById("information").innerHTML = "Logged out successfully";
+        document.getElementById("information-box").classList.remove("logged-in");
+        document.getElementById("auth-boxes").style.display = "block";
+        alert("Logged out successfully");
     }
     </script>
 
@@ -68,7 +70,9 @@
         try {
             const token = localStorage.getItem("token");
             if (!token) {
-                document.getElementById("information").innerHTML = "Not logged in";
+                document.getElementById("information").innerHTML = "Please sign in to continue";
+                document.getElementById("information-box").classList.remove("logged-in");
+                document.getElementById("auth-boxes").style.display = "block";
                 return;
             }
 
@@ -78,12 +82,21 @@
                 }
             });
 
-            document.getElementById("information").innerHTML =
-                "Logged in as: <b>" + response.data.username + "</b>";
+            document.getElementById("information").innerHTML = `
+                <div class="user-info">
+                    <h4>Welcome back!</h4>
+                    <p>Logged in as: <b>${response.data.username}</b></p>
+                    <p class="last-login">Last login: ${new Date().toLocaleString()}</p>
+                </div>
+            `;
+            document.getElementById("information-box").classList.add("logged-in");
+            document.getElementById("auth-boxes").style.display = "none";
         } catch (error) {
             if (error.response?.status === 401) {
                 localStorage.removeItem("token");
                 document.getElementById("information").innerHTML = "Session expired. Please login again.";
+                document.getElementById("information-box").classList.remove("logged-in");
+                document.getElementById("auth-boxes").style.display = "block";
             } else {
                 document.getElementById("information").innerHTML = "Error getting user information";
                 console.error(error);
@@ -161,29 +174,61 @@
         padding: 15px;
         border-radius: 10px;
         box-shadow: 0px 3px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        /* hide information box by default on first load */
+        display: none;
+    }
+
+    /* when user is logged in, show the information box */
+    #information-box.logged-in {
+        display: block;
+        background: #f8f9fa;
+        border: 2px solid #28a745;
+    }
+
+    .user-info {
+        text-align: center;
+        padding: 10px;
+    }
+
+    .user-info h4 {
+        color: #28a745;
+        margin: 0 0 10px 0;
+    }
+
+    .user-info .last-login {
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+
+    #auth-boxes {
+        transition: all 0.3s ease;
     }
 </style>
 </head>
 
 <body>
 
-<div class="box">
-    <h2>Signup</h2>
-    <input type="text" id="signup-username" placeholder="Username">
-    <input type="password" id="signup-password" placeholder="Password">
-    <button onclick="signup()">Submit</button>
-</div>
+<div id="auth-boxes">
+    <div class="box">
+        <h2>Signup</h2>
+        <input type="text" id="signup-username" placeholder="Username">
+        <input type="password" id="signup-password" placeholder="Password">
+        <button onclick="signup()">Submit</button>
+    </div>
 
-<div class="box">
-    <h2>Signin</h2>
-    <input type="text" id="signin-username" placeholder="Username">
-    <input type="password" id="signin-password" placeholder="Password">
-    <button onclick="signin()">Submit</button>
+    <div class="box">
+        <h2>Signin</h2>
+        <input type="text" id="signin-username" placeholder="Username">
+        <input type="password" id="signin-password" placeholder="Password">
+        <button onclick="signin()">Submit</button>
+    </div>
 </div>
 
 <div id="information-box">
     <h3>User Information:</h3>
-    <div id="information"></div>
+    <div id="information">Please sign in to continue</div>
     <button style="margin-top:10px;background:#dc3545" onclick="logout()">Logout</button>
 </div>
 
