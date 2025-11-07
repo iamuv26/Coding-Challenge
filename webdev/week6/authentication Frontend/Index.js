@@ -1,8 +1,14 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const cors = require("cors");
+const path = require("path");
 const JWT_SECRET = "Yuvraj@123";
 const app = express();
+
+// Middleware
+app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname)));
 const users = [];
 
 function logger(req,res,next){
@@ -56,6 +62,11 @@ app.get("/me", logger, auth, (req, res) => {
     return res.status(404).json({ message: "User not found" });
 
   return res.json({ username: foundUser.username });
+});
+
+// Serve the HTML file at root
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "index.html"));
 });
 
 const PORT = 3000;
