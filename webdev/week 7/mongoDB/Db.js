@@ -1,23 +1,37 @@
-const mongoose = require("mongoose");
-const schema = mongoose.schema;
-const ObjectID = mongoose.ObjectID;
+const mongoose = require('mongoose');
 
-const User = new mongoose.Schema({
-    email : String,
-    password : String,
-    name : String
-})
+// MONGO_URI can be provided via env
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://yuviyadav277_db_user:KSeGOT2HN60RpKnM@cluster0.vzrz1it.mongodb.net/todo-Yuvraj';
 
-const Todo = new mongoose.Schema({
-    title: String,
-    done: Boolean,
-    userID: ObjectID
-})
+// Connect once when this module is required
+mongoose.connect(MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => {
+    console.log('Connected to MongoDB Atlas successfully');
+}).catch(err => {
+    console.error('MongoDB connection error:', err.message);
+});
 
-    const UserModel = mongoose.model('users',User);
-    const TodoModel = mongoose.model('todos',todo);
+const { Schema, Types } = mongoose;
+
+const UserSchema = new Schema({
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    name: { type: String }
+}, { timestamps: true });
+
+const TodoSchema = new Schema({
+    title: { type: String, required: true },
+    done: { type: Boolean, default: false },
+    userID: { type: Schema.Types.ObjectId, ref: 'User' }
+}, { timestamps: true });
+
+const UserModel = mongoose.model('User', UserSchema);
+const TodoModel = mongoose.model('Todo', TodoSchema);
 
 module.exports = {
-    UserModel: UserModel,
-    TodoModel: TodoModel
-}
+    UserModel,
+    TodoModel,
+    mongoose
+};
