@@ -1,3 +1,6 @@
+// ===============================
+// 📦 IMPORTS
+// ===============================
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -5,43 +8,48 @@ const cors = require("cors");
 const { z } = require("zod");
 const { UserModel, TodoModel } = require("./Db"); // MongoDB models
 
+// ===============================
+// 🔐 CONFIG
+// ===============================
 const JWT_SECRET = "Yuvraj@123";
 const app = express();
 
-app.use(express.json());
-app.use(cors());
+app.use(express.json()); // Parse JSON body
+app.use(cors()); // Allow cross-origin requests
 
-/*************************************
- * 🧩 ZOD SCHEMAS — Data Validation
- *************************************/
+// ===============================
+// 🧩 ZOD SCHEMAS — Data Validation
+// ===============================
 
-// ✅ Schema for signup data
+// ✅ Signup schema
 const signupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long"),
-  email: z.string().email("Invalid email format"),
+  email: z.email("Invalid email format"), // ✅ .trim() added
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
-// ✅ Schema for signin data
+// ✅ Signin schema
 const signinSchema = z.object({
-  email: z.string().email("Invalid email format"),
+  email: z.email("Invalid email format"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
-// ✅ Schema for todo creation
+// ✅ Todo schema
 const todoSchema = z.object({
   title: z.string().min(1, "Todo title is required"),
 });
 
-/*************************************
- * 🧾 SIGNUP — Create Account
- *************************************/
+// ===============================
+// 🧾 SIGNUP — Create Account
+// ===============================
 app.post("/signup", async (req, res) => {
   try {
+    console.log("📩 Received signup body:", req.body);
+
     // Validate input
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) {
-      const errors = parsed.error.errors.map(e => e.message);
+      const errors = parsed.error.errors.map((e) => e.message);
       return res.status(400).json({ errors });
     }
 
@@ -53,10 +61,10 @@ app.post("/signup", async (req, res) => {
       return res.status(409).json({ message: "User already exists" });
     }
 
-    // Hash password (with built-in salt)
+    // Hash password
     const hashed = await bcrypt.hash(password, 10);
 
-    // Create new user
+    // Create user
     const user = await UserModel.create({ email, password: hashed, name });
 
     res.status(201).json({
@@ -64,33 +72,38 @@ app.post("/signup", async (req, res) => {
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (err) {
+    console.error("❌ Signup error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-/*************************************
- * 🔐 SIGNIN — Login User
- *************************************/
+// ===============================
+// 🔐 SIGNIN — Login User
+// ===============================
 app.post("/signin", async (req, res) => {
   try {
+    console.log("📩 Received signin body:", req.body);
+
     // Validate input
     const parsed = signinSchema.safeParse(req.body);
     if (!parsed.success) {
-      const errors = parsed.error.errors.map(e => e.message);
+      const errors = parsed.error.errors.map((e) => e.message);
       return res.status(400).json({ errors });
     }
 
     const { email, password } = parsed.data;
 
-    // Check user existence
+    // Find user
     const user = await UserModel.findOne({ email });
-    if (!user)
+    if (!user) {
       return res.status(401).json({ message: "Invalid email or password" });
+    }
 
     // Compare password
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid)
+    if (!isValid) {
       return res.status(401).json({ message: "Invalid email or password" });
+    }
 
     // Create token
     const token = jwt.sign(
@@ -105,13 +118,14 @@ app.post("/signin", async (req, res) => {
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (err) {
+    console.error("❌ Signin error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-/*************************************
- * 🛡️ AUTH MIDDLEWARE
- *************************************/
+// ===============================
+// 🛡️ AUTH MIDDLEWARE
+// ===============================
 function auth(req, res, next) {
   const authHeader = req.headers.authorization;
   const token =
@@ -119,39 +133,42 @@ function auth(req, res, next) {
       ? authHeader.split(" ")[1]
       : null;
 
-  if (!token)
+  if (!token) {
     return res.status(401).json({ message: "No token provided" });
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
+    console.error("❌ Token error:", err);
     res.status(401).json({ message: "Invalid or expired token" });
   }
 }
 
-/*************************************
- * 👤 GET CURRENT USER
- *************************************/
+// ===============================
+// 👤 GET CURRENT USER
+// ===============================
 app.get("/me", auth, async (req, res) => {
   try {
     const user = await UserModel.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (err) {
+    console.error("❌ /me error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-/*************************************
- * 📝 CREATE TODO
- *************************************/
+// ===============================
+// 📝 CREATE TODO
+// ===============================
 app.post("/todo", auth, async (req, res) => {
   try {
     const parsed = todoSchema.safeParse(req.body);
     if (!parsed.success) {
-      const errors = parsed.error.errors.map(e => e.message);
+      const errors = parsed.error.errors.map((e) => e.message);
       return res.status(400).json({ errors });
     }
 
@@ -165,25 +182,27 @@ app.post("/todo", auth, async (req, res) => {
 
     res.status(201).json({ message: "Todo created", todo });
   } catch (err) {
+    console.error("❌ Todo creation error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-/*************************************
- * 📜 GET ALL TODOS
- *************************************/
+// ===============================
+// 📜 GET ALL TODOS
+// ===============================
 app.get("/todo", auth, async (req, res) => {
   try {
     const todos = await TodoModel.find({ userID: req.user.id });
     res.json({ todos });
   } catch (err) {
+    console.error("❌ Get todos error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-/*************************************
- * 🚀 START SERVER
- *************************************/
+// ===============================
+// 🚀 START SERVER
+// ===============================
 const PORT = 3000;
 app.listen(PORT, () =>
   console.log(`✅ Server running at http://localhost:${PORT}`)

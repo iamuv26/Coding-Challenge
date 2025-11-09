@@ -28,13 +28,13 @@ const { Schema } = mongoose;
 // ✅ Signup validation (new Zod syntax)
 const UserZodSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters long' }),
-  email: z.string().email({ message: 'Invalid email format' }),
+  email: z.email({ message: 'Invalid email format' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters long' }),
 });
 
 // ✅ Signin validation (new Zod syntax)
 const SigninZodSchema = z.object({
-  email: z.string().email({ message: 'Invalid email format' }),
+  email: z.email({ message: 'Invalid email format' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters long' }),
 });
 

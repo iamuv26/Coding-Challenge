@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo App - Basic Frontend</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 50px;
+      background-color: #f8f9fa;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    .container {
+      max-width: 400px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .todo-item {
+      padding: 8px;
+      background: #f1f1f1;
+      margin-top: 8px;
+      border-radius: 5px;
+    }
+
+    .logout-btn {
+      background: red;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container" id="auth-section">
+    <h2>Signup / Signin</h2>
+    <input type="text" id="name" placeholder="Name (for signup only)">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="signup()">Signup</button>
+    <button onclick="signin()">Signin</button>
+  </div>
+
+  <div class="container" id="todo-section" style="display:none;">
+    <h2>Your Todos</h2>
+    <input type="text" id="todo-title" placeholder="Enter todo">
+    <button onclick="createTodo()">Add Todo</button>
+    <div id="todos"></div>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <script>
+    const API = "http://localhost:3000"; // your backend URL
+
+    async function signup() {
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      const res = await fetch(`${API}/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password })
+      });
+
+      const data = await res.json();
+      alert(data.message || data.errors || "Signup done!");
+    }
+
+    async function signin() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      const res = await fetch(`${API}/signin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        alert("Signin successful!");
+        document.getElementById("auth-section").style.display = "none";
+        document.getElementById("todo-section").style.display = "block";
+        loadTodos();
+      } else {
+        alert(data.message || "Signin failed!");
+      }
+    }
+
+    async function loadTodos() {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/todo`, {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      const data = await res.json();
+
+      const todosDiv = document.getElementById("todos");
+      todosDiv.innerHTML = "";
+      data.todos?.forEach(todo => {
+        const div = document.createElement("div");
+        div.className = "todo-item";
+        div.innerText = `${todo.title} ${todo.done ? "✅" : "❌"}`;
+        todosDiv.appendChild(div);
+      });
+    }
+
+    async function createTodo() {
+      const title = document.getElementById("todo-title").value.trim();
+      if (!title) return alert("Please enter a todo");
+      const token = localStorage.getItem("token");
+
+      await fetch(`${API}/todo`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ title })
+      });
+
+      document.getElementById("todo-title").value = "";
+      loadTodos();
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      document.getElementById("todo-section").style.display = "none";
+      document.getElementById("auth-section").style.display = "block";
+    }
+
+    // Auto-login if token exists
+    if (localStorage.getItem("token")) {
+      document.getElementById("auth-section").style.display = "none";
+      document.getElementById("todo-section").style.display = "block";
+      loadTodos();
+    }
+  </script>
+
+</body>
+</html>
