@@ -1,63 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Todo App - Basic Frontend</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo App - Beautiful UI</title>
   <style>
+    /* 🌈 Overall Layout */
     body {
-      font-family: Arial, sans-serif;
-      margin: 50px;
-      background-color: #f8f9fa;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #74ABE2, #5563DE);
+      margin: 0;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      padding: 30px;
+      transition: all 0.3s ease;
     }
 
     h2 {
       text-align: center;
+      color: #333;
+      margin-bottom: 20px;
     }
 
-    .container {
-      max-width: 400px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    input, button {
+    input {
       width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
+      padding: 12px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 10px;
+      background: #f0f3f7;
+      font-size: 15px;
+      transition: all 0.3s;
+      outline: none;
+    }
+
+    input:focus {
+      box-shadow: 0 0 0 2px #74ABE2;
+      background: #fff;
     }
 
     button {
-      background-color: #007bff;
-      color: white;
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
       border: none;
+      border-radius: 10px;
+      background: #5563DE;
+      color: white;
+      font-size: 16px;
       cursor: pointer;
+      transition: all 0.3s;
     }
 
     button:hover {
-      background-color: #0056b3;
-    }
-
-    .todo-item {
-      padding: 8px;
-      background: #f1f1f1;
-      margin-top: 8px;
-      border-radius: 5px;
+      background: #3949AB;
+      transform: scale(1.02);
     }
 
     .logout-btn {
-      background: red;
+      background: #E74C3C;
+    }
+
+    .logout-btn:hover {
+      background: #c0392b;
+    }
+
+    .todo-item {
+      background: #f9f9f9;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(10px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    .todo-text {
+      flex-grow: 1;
+      color: #333;
+    }
+
+    .todo-status {
+      font-size: 18px;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
 
-  <div class="container" id="auth-section">
+  <!-- AUTH SECTION -->
+  <div class="card" id="auth-section">
     <h2>Signup / Signin</h2>
     <input type="text" id="name" placeholder="Name (for signup only)">
     <input type="email" id="email" placeholder="Email">
@@ -66,7 +120,8 @@
     <button onclick="signin()">Signin</button>
   </div>
 
-  <div class="container" id="todo-section" style="display:none;">
+  <!-- TODO SECTION -->
+  <div class="card hidden" id="todo-section">
     <h2>Your Todos</h2>
     <input type="text" id="todo-title" placeholder="Enter todo">
     <button onclick="createTodo()">Add Todo</button>
@@ -75,7 +130,7 @@
   </div>
 
   <script>
-    const API = "http://localhost:3000"; // your backend URL
+    const API = "http://localhost:3000";
 
     async function signup() {
       const name = document.getElementById("name").value.trim();
@@ -87,7 +142,6 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password })
       });
-
       const data = await res.json();
       alert(data.message || data.errors || "Signup done!");
     }
@@ -101,13 +155,11 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
       });
-
       const data = await res.json();
+
       if (data.token) {
         localStorage.setItem("token", data.token);
-        alert("Signin successful!");
-        document.getElementById("auth-section").style.display = "none";
-        document.getElementById("todo-section").style.display = "block";
+        showTodoSection();
         loadTodos();
       } else {
         alert(data.message || "Signin failed!");
@@ -123,10 +175,19 @@
 
       const todosDiv = document.getElementById("todos");
       todosDiv.innerHTML = "";
-      data.todos?.forEach(todo => {
+
+      if (!data.todos?.length) {
+        todosDiv.innerHTML = "<p style='text-align:center;color:#777;'>No todos yet 📝</p>";
+        return;
+      }
+
+      data.todos.forEach(todo => {
         const div = document.createElement("div");
         div.className = "todo-item";
-        div.innerText = `${todo.title} ${todo.done ? "✅" : "❌"}`;
+        div.innerHTML = `
+          <span class="todo-text">${todo.title}</span>
+          <span class="todo-status">${todo.done ? "✅" : "❌"}</span>
+        `;
         todosDiv.appendChild(div);
       });
     }
@@ -151,17 +212,20 @@
 
     function logout() {
       localStorage.removeItem("token");
-      document.getElementById("todo-section").style.display = "none";
-      document.getElementById("auth-section").style.display = "block";
+      document.getElementById("todo-section").classList.add("hidden");
+      document.getElementById("auth-section").classList.remove("hidden");
     }
 
-    // Auto-login if token exists
+    function showTodoSection() {
+      document.getElementById("auth-section").classList.add("hidden");
+      document.getElementById("todo-section").classList.remove("hidden");
+    }
+
+    // Auto-login
     if (localStorage.getItem("token")) {
-      document.getElementById("auth-section").style.display = "none";
-      document.getElementById("todo-section").style.display = "block";
+      showTodoSection();
       loadTodos();
     }
   </script>
-
 </body>
 </html>
