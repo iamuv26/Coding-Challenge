@@ -2,9 +2,8 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
-
-// ✅ import models and connection from Db.js
-const { UserModel, TodoModel } = require("./Db");
+const { z } = require("zod");
+const { UserModel, TodoModel } = require("./Db"); // MongoDB models
 
 const JWT_SECRET = "Yuvraj@123";
 const app = express();
@@ -12,110 +11,180 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-/******** SIGNUP ********/
+/*************************************
+ * 🧩 ZOD SCHEMAS — Data Validation
+ *************************************/
+
+// ✅ Schema for signup data
+const signupSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters long"),
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
+// ✅ Schema for signin data
+const signinSchema = z.object({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
+// ✅ Schema for todo creation
+const todoSchema = z.object({
+  title: z.string().min(1, "Todo title is required"),
+});
+
+/*************************************
+ * 🧾 SIGNUP — Create Account
+ *************************************/
 app.post("/signup", async (req, res) => {
-    try {
-        const { email, password, name } = req.body;
-        if (!email || !password)
-            return res.status(400).json({ message: "email and password required" });
-
-        const existing = await UserModel.findOne({ email });
-        if (existing)
-            return res.status(409).json({ message: "User already exists" });
-
-        const hashed = await bcrypt.hash(password, 10);
-
-        const user = await UserModel.create({ email, password: hashed, name });
-        return res.status(201).json({
-            message: "Signup successful",
-            user: { id: user._id, email: user.email, name: user.name }
-        });
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
+  try {
+    // Validate input
+    const parsed = signupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const errors = parsed.error.errors.map(e => e.message);
+      return res.status(400).json({ errors });
     }
+
+    const { email, password, name } = parsed.data;
+
+    // Check if user exists
+    const existing = await UserModel.findOne({ email });
+    if (existing) {
+      return res.status(409).json({ message: "User already exists" });
+    }
+
+    // Hash password (with built-in salt)
+    const hashed = await bcrypt.hash(password, 10);
+
+    // Create new user
+    const user = await UserModel.create({ email, password: hashed, name });
+
+    res.status(201).json({
+      message: "Signup successful",
+      user: { id: user._id, email: user.email, name: user.name },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-/******** SIGNIN ********/
+/*************************************
+ * 🔐 SIGNIN — Login User
+ *************************************/
 app.post("/signin", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        if (!email || !password)
-            return res.status(400).json({ message: "email and password required" });
-
-        const user = await UserModel.findOne({ email });
-        if (!user)
-            return res.status(401).json({ message: "Invalid credentials" });
-
-        const isValid = await bcrypt.compare(password, user.password);
-        if (!isValid)
-            return res.status(401).json({ message: "Invalid credentials" });
-
-        const token = jwt.sign(
-            { id: user._id, email: user.email },
-            JWT_SECRET,
-            { expiresIn: "1h" }
-        );
-
-        res.json({ token });
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
+  try {
+    // Validate input
+    const parsed = signinSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const errors = parsed.error.errors.map(e => e.message);
+      return res.status(400).json({ errors });
     }
+
+    const { email, password } = parsed.data;
+
+    // Check user existence
+    const user = await UserModel.findOne({ email });
+    if (!user)
+      return res.status(401).json({ message: "Invalid email or password" });
+
+    // Compare password
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid)
+      return res.status(401).json({ message: "Invalid email or password" });
+
+    // Create token
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      message: "Signin successful",
+      token,
+      user: { id: user._id, email: user.email, name: user.name },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-/******** AUTH MIDDLEWARE ********/
+/*************************************
+ * 🛡️ AUTH MIDDLEWARE
+ *************************************/
 function auth(req, res, next) {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith("Bearer ")
-        ? authHeader.split(" ")[1]
-        : null;
+  const authHeader = req.headers.authorization;
+  const token =
+    authHeader && authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
 
-    if (!token)
-        return res.status(401).json({ message: "No token provided" });
+  if (!token)
+    return res.status(401).json({ message: "No token provided" });
 
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch (err) {
-        return res.status(401).json({ message: "Invalid or expired token" });
-    }
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ message: "Invalid or expired token" });
+  }
 }
 
-/******** GET CURRENT USER ********/
+/*************************************
+ * 👤 GET CURRENT USER
+ *************************************/
 app.get("/me", auth, async (req, res) => {
-    try {
-        const user = await UserModel.findById(req.user.id).select("-password");
-        res.json(user);
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
+  try {
+    const user = await UserModel.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-/******** CREATE TODO ********/
+/*************************************
+ * 📝 CREATE TODO
+ *************************************/
 app.post("/todo", auth, async (req, res) => {
-    try {
-        const { title } = req.body;
-        if (!title)
-            return res.status(400).json({ message: "title required" });
-
-        const todo = await TodoModel.create({
-            title,
-            done: false,
-            userID: req.user.id
-        });
-
-        res.status(201).json({ todo });
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
+  try {
+    const parsed = todoSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const errors = parsed.error.errors.map(e => e.message);
+      return res.status(400).json({ errors });
     }
+
+    const { title } = parsed.data;
+
+    const todo = await TodoModel.create({
+      title,
+      done: false,
+      userID: req.user.id,
+    });
+
+    res.status(201).json({ message: "Todo created", todo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-/******** GET TODOS ********/
+/*************************************
+ * 📜 GET ALL TODOS
+ *************************************/
 app.get("/todo", auth, async (req, res) => {
+  try {
     const todos = await TodoModel.find({ userID: req.user.id });
     res.json({ todos });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-/******** START SERVER ********/
+/*************************************
+ * 🚀 START SERVER
+ *************************************/
 const PORT = 3000;
-app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ Server running at http://localhost:${PORT}`)
+);
