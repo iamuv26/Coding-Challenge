@@ -17,5 +17,5 @@ courseRouter.get("/purchases", function (req, res) {
 
 // Export properly
 module.exports = {
-  courseRouter,
+  courseRouter:courseRouter
 };
