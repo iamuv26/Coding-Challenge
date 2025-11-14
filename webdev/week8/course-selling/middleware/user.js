@@ -2,27 +2,19 @@ const jwt = require("jsonwebtoken");
 const { JWT_USER_SECRET } = require("../config");
 
 function userMiddleware(req, res, next) {
-  try {
-    const token = req.headers.authorization;
+    try {
+        const token = req.cookies.token;  // <-- Read from cookie
 
-    if (!token) {
-      return res.status(403).json({ message: "Token missing" });
+        if (!token) {
+            return res.status(403).json({ message: "Token missing" });
+        }
+
+        const decoded = jwt.verify(token, JWT_USER_SECRET);
+        req.userId = decoded.id;
+        next();
+    } catch (err) {
+        return res.status(403).json({ message: "Invalid or expired token" });
     }
-
-    const actual = token.split(" ")[1];
-    const decoded = jwt.verify(actual, JWT_USER_SECRET);
-
-    req.userID = decoded.id;
-    next();
-
-  } catch (err) {
-    return res.status(403).json({
-      message: "Invalid or expired token",
-      error: err.message
-    });
-  }
 }
 
-module.exports = {
-  userMiddleware
-};
+module.exports = { userMiddleware };

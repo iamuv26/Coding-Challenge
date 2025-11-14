@@ -1,7 +1,7 @@
 require('dotenv').config()
 const express = require("express");
 const mongoose = require("mongoose");
-
+const cookieParser = require("cookie-parser");
 
 const { userRouter } = require("./routes/user");
 const { courseRouter } = require("./routes/course");
@@ -9,8 +9,11 @@ const { adminRouter } = require("./routes/admin");
 
 const app = express();
 
-// Middleware to parse JSON
+// Parse JSON
 app.use(express.json());
+
+// Parse Cookies
+app.use(cookieParser());  // <<---- IMPORTANT
 
 // Mount routers
 app.use("/api/v1/user", userRouter);
