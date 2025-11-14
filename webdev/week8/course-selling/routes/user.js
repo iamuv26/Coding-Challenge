@@ -1,88 +1,77 @@
-const { Router } = require("express"); // ✅ Import Express Router
-const { userModel } = require("../db");
+const { Router } = require("express");
+const { userModel, purchaseModel, courseModel } = require("../db");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
-const userRouter = Router();           // ✅ Create router object
-const JWT_SECRET = "Yuvraj@123"
-// Define routes on userRouter
-userRouter.post("/signup", async function (req, res) {
-  try {
-    const { email, password, firstName, lastName } = req.body;
+const  { JWT_USER_PASSWORD } = require("../config");
+const { userMiddleware } = require("../middleware/user");
 
-    // Check if user exists
-    const existingUser = await userModel.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists"
-      });
+const userRouter = Router();
+
+userRouter.post("/signup", async function(req, res) {
+    const { email, password, firstName, lastName } = req.body; // TODO: adding zod validation
+    // TODO: hash the password so plaintext pw is not stored in the DB
+
+    // TODO: Put inside a try catch block
+    await userModel.create({
+        email: email,
+        password: password,
+        firstName: firstName, 
+        lastName: lastName
+    })
+    
+    res.json({
+        message: "Signup succeeded"
+    })
+})
+
+userRouter.post("/signin",async function(req, res) {
+    const { email, password } = req.body;
+
+    // TODO: ideally password should be hashed, and hence you cant compare the user provided password and the database password
+    const user = await userModel.findOne({
+        email: email,
+        password: password
+    }); //[]
+
+    if (user) {
+        const token = jwt.sign({
+            id: user._id,
+        }, JWT_USER_PASSWORD);
+
+        // Do cookie logic
+
+        res.json({
+            token: token
+        })
+    } else {
+        res.status(403).json({
+            message: "Incorrect credentials"
+        })
+    }
+})
+
+userRouter.get("/purchases", userMiddleware, async function(req, res) {
+    const userId = req.userId;
+
+    const purchases = await purchaseModel.find({
+        userId,
+    });
+
+    let purchasedCourseIds = [];
+
+    for (let i = 0; i<purchases.length;i++){ 
+        purchasedCourseIds.push(purchases[i].courseId)
     }
 
-    const hashedPassword = await bcrypt.hash(password,10);
-    // Create user
-    await userModel.create({
-      email,
-      password : hashedPassword,
-      firstName,
-      lastName
-    });
+    const coursesData = await courseModel.find({
+        _id: { $in: purchasedCourseIds }
+    })
 
     res.json({
-      message: "User created successfully"
-    });
-  } 
-  catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: "Internal server error"
-    });
-  }
-});
+        purchases,
+        coursesData
+    })
+})
 
-
-userRouter.post("/signin", async function (req, res) {
-  try{
-    const{email,password}= req.body;
-    
-    const user = await userModel.findOne({email});
-    if(!user){
-      return res.status(400).json({
-        message:"user not found"
-      });
-    }
-
-    const isPasswordCorrect = await bcrypt.compare(password,user.password);
-    if(!isPasswordCorrect){
-      return res.status(401).json({
-        message: "incorrect password"
-      });
-    }
-  
-  const token = jwt.sign(
-    {id: user._id , email: user.email},JWT_SECRET
-  );
-
-  res.json({
-    message: "Signin succesfully",
-    token : token
-  });
-}
-catch(err){
-  console.log(err);
-  res.status(500).json({
-    message: "something went wrong"
-  })
-}
-});
-
-
-
-userRouter.get("/purchases", function (req, res) {
-  res.json({
-    message: "Purchases endpoint",
-  });
-});
-
-// ✅ Export properly
 module.exports = {
-  userRouter,
-};
+    userRouter: userRouter
+}
